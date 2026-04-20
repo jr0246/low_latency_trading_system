@@ -11,19 +11,18 @@ namespace Exchange {
 
   class FIFOSequencer {
   public:
-    FIFOSequencer(ClientRequestLFQueue *client_requests, Logger *logger)
-        : incoming_requests_(client_requests), logger_(logger) {
+     FIFOSequencer(ClientRequestLFQueue* client_requests, Logger* logger)
+      : incoming_requests_(client_requests), logger_(logger) {
     }
 
-    ~FIFOSequencer() {
-    }
+    ~FIFOSequencer() = default;
 
     /// Queue up a client request, not processed immediately, processed when sequenceAndPublish() is called.
-    auto addClientRequest(Nanos rx_time, const MEClientRequest &request) {
+    auto addClientRequest(Nanos rx_time, const MEClientRequest& request) {
       if (pending_size_ >= pending_client_requests_.size()) {
         FATAL("Too many pending requests");
       }
-      pending_client_requests_.at(pending_size_++) = std::move(RecvTimeClientRequest{rx_time, request});
+      pending_client_requests_.at(pending_size_++) = RecvTimeClientRequest{rx_time, request};
     }
 
     /// Sort pending client requests in ascending receive time order and then write them to the lock free queue for the matching engine to consume from.
@@ -31,19 +30,19 @@ namespace Exchange {
       if (UNLIKELY(!pending_size_))
         return;
 
-      logger_->log("%:% %() % Processing % requests.\n", __FILE__, __LINE__, __FUNCTION__, Common::getCurrentTimeStr(&time_str_), pending_size_);
+      logger_->log("%:% %() % Processing % requests.\n", __FILE__, __LINE__, __FUNCTION__,
+                   Common::getCurrentTimeStr(&time_str_), pending_size_);
 
       std::sort(pending_client_requests_.begin(), pending_client_requests_.begin() + pending_size_);
 
       for (size_t i = 0; i < pending_size_; ++i) {
-        const auto &client_request = pending_client_requests_.at(i);
+        auto& [recv_time_, request_] = pending_client_requests_.at(i);
 
-        logger_->log("%:% %() % Writing RX:% Req:% to FIFO.\n", __FILE__, __LINE__, __FUNCTION__, Common::getCurrentTimeStr(&time_str_),
-                     client_request.recv_time_, client_request.request_.toString());
+        logger_->log("%:% %() % Writing RX:% Req:% to FIFO.\n", __FILE__, __LINE__, __FUNCTION__,
+                     Common::getCurrentTimeStr(&time_str_),
+                     recv_time_, request_.toString());
 
-        auto next_write = incoming_requests_->getNextToWriteTo();
-        *next_write = std::move(client_request.request_);
-        incoming_requests_->updateWriteIndex();
+        incoming_requests_->push(std::move(request_));
         TTT_MEASURE(T2_OrderServer_LFQueue_write, (*logger_));
       }
 
@@ -53,27 +52,27 @@ namespace Exchange {
     /// Deleted default, copy & move constructors and assignment-operators.
     FIFOSequencer() = delete;
 
-    FIFOSequencer(const FIFOSequencer &) = delete;
+    FIFOSequencer(const FIFOSequencer&) = delete;
 
-    FIFOSequencer(const FIFOSequencer &&) = delete;
+    FIFOSequencer(FIFOSequencer&&) = delete;
 
-    FIFOSequencer &operator=(const FIFOSequencer &) = delete;
+    FIFOSequencer& operator=(const FIFOSequencer&) = delete;
 
-    FIFOSequencer &operator=(const FIFOSequencer &&) = delete;
+    FIFOSequencer& operator=(FIFOSequencer&&) = delete;
 
   private:
     /// Lock free queue used to publish client requests to, so that the matching engine can consume them.
-    ClientRequestLFQueue *incoming_requests_ = nullptr;
+    ClientRequestLFQueue* incoming_requests_ = nullptr;
 
     std::string time_str_;
-    Logger *logger_ = nullptr;
+    Logger* logger_ = nullptr;
 
     /// A structure that encapsulates the software receive time as well as the client request.
     struct RecvTimeClientRequest {
       Nanos recv_time_ = 0;
       MEClientRequest request_;
 
-      auto operator<(const RecvTimeClientRequest &rhs) const {
+      auto operator<(const RecvTimeClientRequest& rhs) const {
         return (recv_time_ < rhs.recv_time_);
       }
     };

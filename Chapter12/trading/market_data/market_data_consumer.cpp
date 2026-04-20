@@ -1,5 +1,8 @@
 #include "market_data_consumer.h"
 
+#include <cstring>
+#include <string>
+
 namespace Trading {
   MarketDataConsumer::MarketDataConsumer(Common::ClientId client_id, Exchange::MEMarketUpdateLFQueue *market_updates,
                                          const std::string &iface,
@@ -127,10 +130,8 @@ namespace Trading {
       return;
     }
 
-    for (const auto &itr: final_events) {
-      auto next_write = incoming_md_updates_->getNextToWriteTo();
-      *next_write = itr;
-      incoming_md_updates_->updateWriteIndex();
+    for (auto &itr: final_events) {
+      incoming_md_updates_->push(itr);
     }
 
     logger_.log("%:% %() % Recovered % snapshot and % incremental orders.\n", __FILE__, __LINE__, __FUNCTION__,
@@ -180,7 +181,7 @@ namespace Trading {
     if (socket->next_rcv_valid_index_ >= sizeof(Exchange::MDPMarketUpdate)) {
       size_t i = 0;
       for (; i + sizeof(Exchange::MDPMarketUpdate) <= socket->next_rcv_valid_index_; i += sizeof(Exchange::MDPMarketUpdate)) {
-        auto request = reinterpret_cast<const Exchange::MDPMarketUpdate *>(socket->inbound_data_.data() + i);
+        auto request = reinterpret_cast<Exchange::MDPMarketUpdate *>(socket->inbound_data_.data() + i);
         logger_.log("%:% %() % Received % socket len:% %\n", __FILE__, __LINE__, __FUNCTION__,
                     Common::getCurrentTimeStr(&time_str_),
                     (is_snapshot ? "snapshot" : "incremental"), sizeof(Exchange::MDPMarketUpdate), request->toString());
@@ -201,10 +202,7 @@ namespace Trading {
                       Common::getCurrentTimeStr(&time_str_), request->toString());
 
           ++next_exp_inc_seq_num_;
-
-          auto next_write = incoming_md_updates_->getNextToWriteTo();
-          *next_write = std::move(request->me_market_update_);
-          incoming_md_updates_->updateWriteIndex();
+          incoming_md_updates_->push(std::move(request->me_market_update_));
           TTT_MEASURE(T8_MarketDataConsumer_LFQueue_write, logger_);
         }
       }

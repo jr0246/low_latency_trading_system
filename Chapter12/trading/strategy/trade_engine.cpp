@@ -64,9 +64,7 @@ namespace Trading {
   auto TradeEngine::sendClientRequest(const Exchange::MEClientRequest *client_request) noexcept -> void {
     logger_.log("%:% %() % Sending %\n", __FILE__, __LINE__, __FUNCTION__, Common::getCurrentTimeStr(&time_str_),
                 client_request->toString().c_str());
-    auto next_write = outgoing_ogw_requests_->getNextToWriteTo();
-    *next_write = std::move(*client_request);
-    outgoing_ogw_requests_->updateWriteIndex();
+    outgoing_ogw_requests_->push(*client_request);
     TTT_MEASURE(T10_TradeEngine_LFQueue_write, logger_);
   }
 
@@ -74,25 +72,25 @@ namespace Trading {
   auto TradeEngine::run() noexcept -> void {
     logger_.log("%:% %() %\n", __FILE__, __LINE__, __FUNCTION__, Common::getCurrentTimeStr(&time_str_));
     while (run_) {
-      for (auto client_response = incoming_ogw_responses_->getNextToRead(); client_response; client_response = incoming_ogw_responses_->getNextToRead()) {
+      Exchange::MEClientResponse client_response;
+      while (incoming_ogw_responses_->pop(client_response)) {
         TTT_MEASURE(T9t_TradeEngine_LFQueue_read, logger_);
 
         logger_.log("%:% %() % Processing %\n", __FILE__, __LINE__, __FUNCTION__, Common::getCurrentTimeStr(&time_str_),
-                    client_response->toString().c_str());
-        onOrderUpdate(client_response);
-        incoming_ogw_responses_->updateReadIndex();
+                    client_response.toString().c_str());
+        onOrderUpdate(&client_response);
         last_event_time_ = Common::getCurrentNanos();
       }
 
-      for (auto market_update = incoming_md_updates_->getNextToRead(); market_update; market_update = incoming_md_updates_->getNextToRead()) {
+      Exchange::MEMarketUpdate market_update;
+      while (incoming_md_updates_->pop(market_update)) {
         TTT_MEASURE(T9_TradeEngine_LFQueue_read, logger_);
 
         logger_.log("%:% %() % Processing %\n", __FILE__, __LINE__, __FUNCTION__, Common::getCurrentTimeStr(&time_str_),
-                    market_update->toString().c_str());
-        ASSERT(market_update->ticker_id_ < ticker_order_book_.size(),
-               "Unknown ticker-id on update:" + market_update->toString());
-        ticker_order_book_[market_update->ticker_id_]->onMarketUpdate(market_update);
-        incoming_md_updates_->updateReadIndex();
+                    market_update.toString().c_str());
+        ASSERT(market_update.ticker_id_ < ticker_order_book_.size(),
+               "Unknown ticker-id on update:" + market_update.toString());
+        ticker_order_book_[market_update.ticker_id_]->onMarketUpdate(&market_update);
         last_event_time_ = Common::getCurrentNanos();
       }
     }

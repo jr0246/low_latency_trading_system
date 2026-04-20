@@ -70,17 +70,16 @@ namespace Exchange {
     std::string time_str_;
     Logger *logger_ = nullptr;
 
-  private:
     auto generateNewMarketOrderId() noexcept -> OrderId {
       return next_market_order_id_++;
     }
 
-    auto priceToIndex(Price price) const noexcept {
-      return (price % ME_MAX_PRICE_LEVELS);
+    static auto priceToIndex(Price price) noexcept {
+      return price & ME_MAX_PRICE_LEVELS - 1;
     }
 
     /// Fetch and return the MEOrdersAtPrice corresponding to the provided price.
-    auto getOrdersAtPrice(Price price) const noexcept -> MEOrdersAtPrice * {
+    [[nodiscard]] MEOrdersAtPrice* getOrdersAtPrice(Price price) const noexcept {
       return price_orders_at_price_.at(priceToIndex(price));
     }
 

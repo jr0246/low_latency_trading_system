@@ -51,20 +51,16 @@ namespace Exchange {
     }
 
     /// Write client responses to the lock free queue for the order server to consume.
-    auto sendClientResponse(const MEClientResponse *client_response) noexcept {
+    auto sendClientResponse(MEClientResponse *client_response) noexcept {
       logger_.log("%:% %() % Sending %\n", __FILE__, __LINE__, __FUNCTION__, Common::getCurrentTimeStr(&time_str_), client_response->toString());
-      auto next_write = outgoing_ogw_responses_->getNextToWriteTo();
-      *next_write = std::move(*client_response);
-      outgoing_ogw_responses_->updateWriteIndex();
+      outgoing_ogw_responses_->push(std::move(*client_response));
       TTT_MEASURE(T4t_MatchingEngine_LFQueue_write, logger_);
     }
 
     /// Write market data update to the lock free queue for the market data publisher to consume.
-    auto sendMarketUpdate(const MEMarketUpdate *market_update) noexcept {
+    auto sendMarketUpdate(MEMarketUpdate *market_update) noexcept {
       logger_.log("%:% %() % Sending %\n", __FILE__, __LINE__, __FUNCTION__, Common::getCurrentTimeStr(&time_str_), market_update->toString());
-      auto next_write = outgoing_md_updates_->getNextToWriteTo();
-      *next_write = *market_update;
-      outgoing_md_updates_->updateWriteIndex();
+      outgoing_md_updates_->push(std::move(*market_update));
       TTT_MEASURE(T4_MatchingEngine_LFQueue_write, logger_);
     }
 
@@ -72,16 +68,15 @@ namespace Exchange {
     auto run() noexcept {
       logger_.log("%:% %() %\n", __FILE__, __LINE__, __FUNCTION__, Common::getCurrentTimeStr(&time_str_));
       while (run_) {
-        const auto me_client_request = incoming_requests_->getNextToRead();
-        if (LIKELY(me_client_request)) {
+        MEClientRequest me_client_request;
+        if (LIKELY(incoming_requests_->pop(me_client_request))) {
           TTT_MEASURE(T3_MatchingEngine_LFQueue_read, logger_);
 
           logger_.log("%:% %() % Processing %\n", __FILE__, __LINE__, __FUNCTION__, Common::getCurrentTimeStr(&time_str_),
-                      me_client_request->toString());
+                      me_client_request.toString());
           START_MEASURE(Exchange_MatchingEngine_processClientRequest);
-          processClientRequest(me_client_request);
+          processClientRequest(&me_client_request);
           END_MEASURE(Exchange_MatchingEngine_processClientRequest, logger_);
-          incoming_requests_->updateReadIndex();
         }
       }
     }
@@ -91,11 +86,11 @@ namespace Exchange {
 
     MatchingEngine(const MatchingEngine &) = delete;
 
-    MatchingEngine(const MatchingEngine &&) = delete;
+    MatchingEngine(MatchingEngine &&) = delete;
 
     MatchingEngine &operator=(const MatchingEngine &) = delete;
 
-    MatchingEngine &operator=(const MatchingEngine &&) = delete;
+    MatchingEngine &operator=(MatchingEngine &&) = delete;
 
   private:
     /// Hash map container from TickerId -> MEOrderBook.

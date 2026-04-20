@@ -30,21 +30,21 @@ namespace Exchange {
 
         tcp_server_.sendAndRecv();
 
-        for (auto client_response = outgoing_responses_->getNextToRead(); outgoing_responses_->size() && client_response; client_response = outgoing_responses_->getNextToRead()) {
+        MEClientResponse client_response;
+        while (outgoing_responses_->pop(client_response)) {
           TTT_MEASURE(T5t_OrderServer_LFQueue_read, logger_);
 
-          auto &next_outgoing_seq_num = cid_next_outgoing_seq_num_[client_response->client_id_];
+          auto &next_outgoing_seq_num = cid_next_outgoing_seq_num_[client_response.client_id_];
           logger_.log("%:% %() % Processing cid:% seq:% %\n", __FILE__, __LINE__, __FUNCTION__, Common::getCurrentTimeStr(&time_str_),
-                      client_response->client_id_, next_outgoing_seq_num, client_response->toString());
+                      client_response.client_id_, next_outgoing_seq_num, client_response.toString());
 
-          ASSERT(cid_tcp_socket_[client_response->client_id_] != nullptr,
-                 "Dont have a TCPSocket for ClientId:" + std::to_string(client_response->client_id_));
+          ASSERT(cid_tcp_socket_[client_response.client_id_] != nullptr,
+                 "Dont have a TCPSocket for ClientId:" + std::to_string(client_response.client_id_));
           START_MEASURE(Exchange_TCPSocket_send);
-          cid_tcp_socket_[client_response->client_id_]->send(&next_outgoing_seq_num, sizeof(next_outgoing_seq_num));
-          cid_tcp_socket_[client_response->client_id_]->send(client_response, sizeof(MEClientResponse));
+          cid_tcp_socket_[client_response.client_id_]->send(&next_outgoing_seq_num, sizeof(next_outgoing_seq_num));
+          cid_tcp_socket_[client_response.client_id_]->send(&client_response, sizeof(MEClientResponse));
           END_MEASURE(Exchange_TCPSocket_send, logger_);
 
-          outgoing_responses_->updateReadIndex();
           TTT_MEASURE(T6t_OrderServer_TCP_write, logger_);
 
           ++next_outgoing_seq_num;

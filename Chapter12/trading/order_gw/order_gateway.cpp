@@ -16,16 +16,16 @@ namespace Trading {
     while (run_) {
       tcp_socket_.sendAndRecv();
 
-      for(auto client_request = outgoing_requests_->getNextToRead(); client_request; client_request = outgoing_requests_->getNextToRead()) {
+      Exchange::MEClientRequest client_request;
+      while (outgoing_requests_->pop(client_request)) {
         TTT_MEASURE(T11_OrderGateway_LFQueue_read, logger_);
 
         logger_.log("%:% %() % Sending cid:% seq:% %\n", __FILE__, __LINE__, __FUNCTION__,
-                    Common::getCurrentTimeStr(&time_str_), client_id_, next_outgoing_seq_num_, client_request->toString());
+                    Common::getCurrentTimeStr(&time_str_), client_id_, next_outgoing_seq_num_, client_request.toString());
         START_MEASURE(Trading_TCPSocket_send);
         tcp_socket_.send(&next_outgoing_seq_num_, sizeof(next_outgoing_seq_num_));
-        tcp_socket_.send(client_request, sizeof(Exchange::MEClientRequest));
+        tcp_socket_.send(&client_request, sizeof(Exchange::MEClientRequest));
         END_MEASURE(Trading_TCPSocket_send, logger_);
-        outgoing_requests_->updateReadIndex();
         TTT_MEASURE(T12_OrderGateway_TCP_write, logger_);
 
         next_outgoing_seq_num_++;
@@ -43,7 +43,7 @@ namespace Trading {
     if (socket->next_rcv_valid_index_ >= sizeof(Exchange::OMClientResponse)) {
       size_t i = 0;
       for (; i + sizeof(Exchange::OMClientResponse) <= socket->next_rcv_valid_index_; i += sizeof(Exchange::OMClientResponse)) {
-        auto response = reinterpret_cast<const Exchange::OMClientResponse *>(socket->inbound_data_.data() + i);
+        auto response = reinterpret_cast<Exchange::OMClientResponse *>(socket->inbound_data_.data() + i);
         logger_.log("%:% %() % Received %\n", __FILE__, __LINE__, __FUNCTION__, Common::getCurrentTimeStr(&time_str_), response->toString());
 
         if(response->me_client_response_.client_id_ != client_id_) { // this should never happen unless there is a bug at the exchange.
@@ -59,9 +59,7 @@ namespace Trading {
 
         ++next_exp_seq_num_;
 
-        auto next_write = incoming_responses_->getNextToWriteTo();
-        *next_write = std::move(response->me_client_response_);
-        incoming_responses_->updateWriteIndex();
+        incoming_responses_->push(std::move(response->me_client_response_));
         TTT_MEASURE(T8t_OrderGateway_LFQueue_write, logger_);
       }
       memcpy(socket->inbound_data_.data(), socket->inbound_data_.data() + i, socket->next_rcv_valid_index_ - i);
