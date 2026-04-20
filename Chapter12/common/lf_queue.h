@@ -1,61 +1,102 @@
 #pragma once
 
-#include <iostream>
-#include <vector>
 #include <atomic>
+#include <cassert>
 
 #include "macros.h"
 
+/**
+ * SPSC queue
+ */
 namespace Common {
-  template<typename T>
-  class LFQueue final {
+  template <typename T, typename Alloc = std::allocator<T>>
+  class LFQueue : Alloc {
+    using value_type = T;
+    using allocator_traits = std::allocator_traits<Alloc>;
+    using size_type = allocator_traits::size_type;
+
   public:
-    explicit LFQueue(std::size_t num_elems) :
-        store_(num_elems, T()) /* pre-allocation of vector storage. */ {
+    explicit LFQueue(size_type N, Alloc const& alloc = Alloc{}) :
+      Alloc{alloc},
+      mask_{N - 1},
+      ring_{allocator_traits::allocate(*this, N)} {
+      ASSERT(std::has_single_bit(N), "N must be a power of two.");
     }
 
-    auto getNextToWriteTo() noexcept {
-      return &store_[next_write_index_];
+    template <typename U>
+            requires std::is_nothrow_constructible_v<value_type, U&&>
+    bool push(U&& elem) {
+      auto wr_index = write_index_.load(std::memory_order_relaxed);
+      if (full(wr_index, cached_read_index_)) {
+        cached_read_index_ = read_index_.load(std::memory_order_acquire);
+        if (full(wr_index, cached_read_index_)) {
+          return false;
+        }
+      }
+      std::construct_at(getElement(wr_index), std::forward<U>(elem));
+      write_index_.store(write_index_ + 1, std::memory_order_release);
+      return true;
     }
 
-    auto updateWriteIndex() noexcept {
-      next_write_index_ = (next_write_index_ + 1) % store_.size();
-      num_elements_++;
-    }
-
-    auto getNextToRead() const noexcept -> const T * {
-      return (size() ? &store_[next_read_index_] : nullptr);
-    }
-
-    auto updateReadIndex() noexcept {
-      next_read_index_ = (next_read_index_ + 1) % store_.size(); // wrap around at the end of container size.
-      ASSERT(num_elements_ != 0, "Read an invalid element in:" + std::to_string(pthread_self()));
-      num_elements_--;
+    bool pop(T& value) {
+      auto rd_index = read_index_.load(std::memory_order_relaxed);
+      if (empty(cached_write_index_, rd_index)) {
+        cached_write_index_ = write_index_.load(std::memory_order_acquire);
+        if (empty(cached_write_index_, rd_index)) {
+          return false;
+        }
+      }
+      value = *getElement(rd_index);
+      getElement(rd_index)->~T();
+      read_index_.store(read_index_ + 1, std::memory_order_release);
+      return true;
     }
 
     auto size() const noexcept {
-      return num_elements_.load();
+      auto pushCursor = write_index_.load(std::memory_order_relaxed);
+      auto popCursor = read_index_.load(std::memory_order_relaxed);
+
+      assert(popCursor <= pushCursor);
+      return pushCursor - popCursor;
     }
 
-    /// Deleted default, copy & move constructors and assignment-operators.
-    LFQueue() = delete;
+    LFQueue(const LFQueue&) = delete;
+    LFQueue& operator=(const LFQueue&) = delete;
 
-    LFQueue(const LFQueue &) = delete;
-
-    LFQueue(const LFQueue &&) = delete;
-
-    LFQueue &operator=(const LFQueue &) = delete;
-
-    LFQueue &operator=(const LFQueue &&) = delete;
+    LFQueue(LFQueue&&) = delete;
+    LFQueue& operator=(LFQueue&&) = delete;
 
   private:
-    /// Underlying container of data accessed in FIFO order.
-    std::vector<T> store_;
+    size_type mask_;
+    T* ring_;
 
-    /// Atomic trackers for next index to write new data to and read new data from.
-    std::atomic<size_t> next_write_index_ = {0};
-    std::atomic<size_t> next_read_index_ = {0};
+    static constexpr auto hardware_destructive_interference_size = size_type{64};
 
-    std::atomic<size_t> num_elements_ = {0};
+    /** Atomic read/write indices. Aligned on unique cache lines to avoid false sharing between the producer and
+     * consumer threads. We include a cached version of each to allow lazy index updates, which is valid in an
+     * SPSC context. The cached versions do not need to be atomics as each is only ever read by one of the
+     * producer (cached read) or consumer (cached write).
+     */
+    alignas(hardware_destructive_interference_size) std::atomic<size_type> write_index_ = {0};
+    alignas(hardware_destructive_interference_size) size_type cached_write_index_ = {0};
+
+    alignas(hardware_destructive_interference_size) std::atomic<size_type> read_index_ = {0};
+    alignas(hardware_destructive_interference_size) size_type cached_read_index_ = {0};
+
+    auto capacity() const noexcept {
+      return mask_ + 1;
+    }
+
+    auto full(size_type pushCursor, size_type popCursor) const noexcept {
+      return pushCursor - popCursor == capacity();
+    }
+
+    static auto empty(size_type pushCursor, size_type popCursor) noexcept {
+      return pushCursor == popCursor;
+    }
+
+    auto getElement(size_type cursor) {
+      return &ring_[cursor & mask_];
+    }
   };
 }
