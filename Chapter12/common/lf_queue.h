@@ -34,7 +34,7 @@ namespace Common {
         }
       }
       std::construct_at(getElement(wr_index), std::forward<U>(elem));
-      write_index_.store(write_index_ + 1, std::memory_order_release);
+      write_index_.store(wr_index + 1, std::memory_order_release);
       return true;
     }
 
@@ -48,7 +48,7 @@ namespace Common {
       }
       value = *getElement(rd_index);
       getElement(rd_index)->~T();
-      read_index_.store(read_index_ + 1, std::memory_order_release);
+      read_index_.store(rd_index + 1, std::memory_order_release);
       return true;
     }
 
