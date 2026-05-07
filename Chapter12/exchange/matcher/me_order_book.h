@@ -33,11 +33,11 @@ namespace Exchange {
 
     MEOrderBook(const MEOrderBook &) = delete;
 
-    MEOrderBook(const MEOrderBook &&) = delete;
+    MEOrderBook(MEOrderBook &&) = delete;
 
     MEOrderBook &operator=(const MEOrderBook &) = delete;
 
-    MEOrderBook &operator=(const MEOrderBook &&) = delete;
+    MEOrderBook &operator=(MEOrderBook &&) = delete;
 
   private:
     TickerId ticker_id_ = TickerId_INVALID;

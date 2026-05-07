@@ -43,11 +43,11 @@ namespace Common {
 
     MemPool(const MemPool &) = delete;
 
-    MemPool(const MemPool &&) = delete;
+    MemPool(MemPool &&) = delete;
 
     MemPool &operator=(const MemPool &) = delete;
 
-    MemPool &operator=(const MemPool &&) = delete;
+    MemPool &operator=(MemPool &&) = delete;
 
   private:
     /// Find the next available free block to be used for the next allocation.

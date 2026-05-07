@@ -40,11 +40,11 @@ namespace Exchange {
 
     SnapshotSynthesizer(const SnapshotSynthesizer &) = delete;
 
-    SnapshotSynthesizer(const SnapshotSynthesizer &&) = delete;
+    SnapshotSynthesizer(SnapshotSynthesizer &&) = delete;
 
     SnapshotSynthesizer &operator=(const SnapshotSynthesizer &) = delete;
 
-    SnapshotSynthesizer &operator=(const SnapshotSynthesizer &&) = delete;
+    SnapshotSynthesizer &operator=(SnapshotSynthesizer &&) = delete;
 
   private:
     /// Lock free queue containing incremental market data updates coming in from the market data publisher.

@@ -39,11 +39,11 @@ namespace Trading {
 
     MarketDataConsumer(const MarketDataConsumer &) = delete;
 
-    MarketDataConsumer(const MarketDataConsumer &&) = delete;
+    MarketDataConsumer(MarketDataConsumer &&) = delete;
 
     MarketDataConsumer &operator=(const MarketDataConsumer &) = delete;
 
-    MarketDataConsumer &operator=(const MarketDataConsumer &&) = delete;
+    MarketDataConsumer &operator=(MarketDataConsumer &&) = delete;
 
   private:
     /// Track the next expected sequence number on the incremental market data stream, used to detect gaps / drops.

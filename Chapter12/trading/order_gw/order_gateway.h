@@ -41,11 +41,11 @@ namespace Trading {
 
     OrderGateway(const OrderGateway &) = delete;
 
-    OrderGateway(const OrderGateway &&) = delete;
+    OrderGateway(OrderGateway &&) = delete;
 
     OrderGateway &operator=(const OrderGateway &) = delete;
 
-    OrderGateway &operator=(const OrderGateway &&) = delete;
+    OrderGateway &operator=(OrderGateway &&) = delete;
 
   private:
     const ClientId client_id_;

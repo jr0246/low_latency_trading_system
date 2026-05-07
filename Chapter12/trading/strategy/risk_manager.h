@@ -85,11 +85,11 @@ namespace Trading {
 
     RiskManager(const RiskManager &) = delete;
 
-    RiskManager(const RiskManager &&) = delete;
+    RiskManager(RiskManager &&) = delete;
 
     RiskManager &operator=(const RiskManager &) = delete;
 
-    RiskManager &operator=(const RiskManager &&) = delete;
+    RiskManager &operator=(RiskManager &&) = delete;
 
   private:
     std::string time_str_;

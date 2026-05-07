@@ -105,11 +105,11 @@ namespace Exchange {
 
     OrderServer(const OrderServer &) = delete;
 
-    OrderServer(const OrderServer &&) = delete;
+    OrderServer(OrderServer &&) = delete;
 
     OrderServer &operator=(const OrderServer &) = delete;
 
-    OrderServer &operator=(const OrderServer &&) = delete;
+    OrderServer &operator=(OrderServer &&) = delete;
 
   private:
     const std::string iface_;

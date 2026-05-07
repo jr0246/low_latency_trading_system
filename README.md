@@ -9,7 +9,7 @@ a number of ways based on review of the code.
 
 ### Upcoming fixes and (description of impact of the change on performance):
 
-- [ ] Many uses of move semantics and declarations of move constructors are incorrect - these should be fixed.
+- [x] Many uses of move semantics and declarations of move constructors/assignment operators are incorrect - these should be fixed.
 - [x] Fix the provided lock-free queue implementation (see commit: https://github.com/jr0246/low_latency_trading_system/commit/f233730e2ef42fd8c634e21983052549e890ec2d)
   - **_Outcome: Resolving this resulted in a reduction of the most severe latency spikes by roughly 40%_**
 - [ ] Logging should not be done on the hot path, but rather dispatched to a SPSC buffer that is consumed by a single process (pinned to a separate CPU).

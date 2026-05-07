@@ -63,11 +63,11 @@ namespace Trading {
 
     MarketOrderBook(const MarketOrderBook &) = delete;
 
-    MarketOrderBook(const MarketOrderBook &&) = delete;
+    MarketOrderBook(MarketOrderBook &&) = delete;
 
     MarketOrderBook &operator=(const MarketOrderBook &) = delete;
 
-    MarketOrderBook &operator=(const MarketOrderBook &&) = delete;
+    MarketOrderBook &operator=(MarketOrderBook &&) = delete;
 
   private:
     const TickerId ticker_id_;

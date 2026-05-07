@@ -47,11 +47,11 @@ namespace OptCommon {
 
     OptMemPool(const OptMemPool &) = delete;
 
-    OptMemPool(const OptMemPool &&) = delete;
+    OptMemPool(OptMemPool &&) = delete;
 
     OptMemPool &operator=(const OptMemPool &) = delete;
 
-    OptMemPool &operator=(const OptMemPool &&) = delete;
+    OptMemPool &operator=(OptMemPool &&) = delete;
 
   private:
     /// Find the next available free block to be used for the next allocation.

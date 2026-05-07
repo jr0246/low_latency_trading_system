@@ -92,11 +92,11 @@ namespace Trading {
 
     TradeEngine(const TradeEngine &) = delete;
 
-    TradeEngine(const TradeEngine &&) = delete;
+    TradeEngine(TradeEngine &&) = delete;
 
     TradeEngine &operator=(const TradeEngine &) = delete;
 
-    TradeEngine &operator=(const TradeEngine &&) = delete;
+    TradeEngine &operator=(TradeEngine &&) = delete;
 
   private:
     /// This trade engine's ClientId.

@@ -44,11 +44,11 @@ namespace Exchange {
 
     MarketDataPublisher(const MarketDataPublisher &) = delete;
 
-    MarketDataPublisher(const MarketDataPublisher &&) = delete;
+    MarketDataPublisher(MarketDataPublisher &&) = delete;
 
     MarketDataPublisher &operator=(const MarketDataPublisher &) = delete;
 
-    MarketDataPublisher &operator=(const MarketDataPublisher &&) = delete;
+    MarketDataPublisher &operator=(MarketDataPublisher &&) = delete;
 
   private:
     /// Sequencer number tracker on the incremental market data stream.

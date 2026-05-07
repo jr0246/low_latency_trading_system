@@ -35,11 +35,11 @@ namespace Exchange {
 
     UnorderedMapMEOrderBook(const UnorderedMapMEOrderBook &) = delete;
 
-    UnorderedMapMEOrderBook(const UnorderedMapMEOrderBook &&) = delete;
+    UnorderedMapMEOrderBook(UnorderedMapMEOrderBook &&) = delete;
 
     UnorderedMapMEOrderBook &operator=(const UnorderedMapMEOrderBook &) = delete;
 
-    UnorderedMapMEOrderBook &operator=(const UnorderedMapMEOrderBook &&) = delete;
+    UnorderedMapMEOrderBook &operator=(UnorderedMapMEOrderBook &&) = delete;
 
   private:
     TickerId ticker_id_ = TickerId_INVALID;
